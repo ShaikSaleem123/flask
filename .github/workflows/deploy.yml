@@ -1,0 +1,33 @@
+name: Deploy Flask App to EC2
+
+on:
+  push:
+    branches:
+      - qa  # Trigger only when pushing to main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H 13.126.113.220 >> ~/.ssh/known_hosts
+
+      - name: Deploy to EC2 Instance
+        run: |
+          ssh ubuntu@13.126.113.220 << 'EOF'
+            cd ~/flask
+            git pull origin qa
+            source venv/bin/activate
+            pip install -r requirements.txt
+            sudo systemctl restart flask-app
+            #pkill gunicorn || true
+            #nohup gunicorn -w 3 -b 0.0.0.0:5000 app:app > gunicorn.log 2>&1 &
+          EOF
